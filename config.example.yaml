@@ -1,0 +1,63 @@
+# cb_soak_tester configuration
+#
+# Copy to config.yaml and edit. Secrets can (and should) be supplied via
+# environment variables instead of being written here:
+#   COUCHBASE_CONNSTR, COUCHBASE_USERNAME, COUCHBASE_PASSWORD
+# Environment variables always override the values in this file.
+
+cluster:
+  # couchbases:// for TLS (Capella), couchbase:// for a plain cluster.
+  connstr: "couchbase://localhost"
+  username: "Administrator"
+  password: "password"          # prefer COUCHBASE_PASSWORD env var
+  bucket: "soak"
+  scope: "_default"
+  collection: "_default"
+  # Seconds to wait for KV / query operations before timing out.
+  kv_timeout_s: 5.0
+  query_timeout_s: 30.0
+  # Set true for Capella / any TLS endpoint. Uses the bundled CA set unless
+  # tls_cert_path is given.
+  tls: false
+  tls_cert_path: null
+
+workload:
+  # Total wall-clock duration of the soak run.
+  duration_s: 3600            # 1 hour
+  # Number of concurrent async workers (the concurrency knob).
+  concurrency: 128
+  # Ramp workers up linearly over this many seconds (0 = start at full).
+  ramp_up_s: 30
+  # Size of the key space for KV operations. seed populates this many docs.
+  key_space: 100000
+  # Approximate size in bytes of the random payload written on upserts.
+  doc_bytes: 512
+  # Optional global rate cap in ops/sec (null = open loop, as fast as possible).
+  target_ops_per_sec: null
+  # Relative weights for operation selection. KV-heavy mix by default.
+  mix:
+    kv_get: 45
+    kv_upsert: 25
+    query: 30
+  # N1QL query template. $type / $region are bound as named parameters.
+  # Requires an index on (type, region) — `cb-soak seed` creates one.
+  query: >-
+    SELECT META().id
+    FROM `{keyspace}`
+    WHERE type = $type AND region = $region
+    LIMIT 20
+  # Regions randomly assigned to seeded docs and used as query parameters.
+  regions: ["us-east", "us-west", "eu-central", "ap-south", "sa-east"]
+
+metrics:
+  # Prometheus /metrics endpoint. Point Prometheus at <ec2-host>:9099.
+  enabled: true
+  host: "0.0.0.0"
+  port: 9099
+
+report:
+  # Reservoir sample size per operation for latency percentiles in the
+  # final CLI report (memory-bounded; Prometheus histograms are exact-ish).
+  reservoir_size: 50000
+  # Write a machine-readable summary here at the end of the run (null = skip).
+  json_out: "soak-report.json"

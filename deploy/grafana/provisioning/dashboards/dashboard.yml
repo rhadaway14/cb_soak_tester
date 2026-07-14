@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: "cb-soak"
+    orgId: 1
+    folder: "Couchbase Soak"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

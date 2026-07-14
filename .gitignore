@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# cb_soak_tester — local config with credentials and run output
+config.yaml
+soak-report.json
+*.local

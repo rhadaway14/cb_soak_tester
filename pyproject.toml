@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cb-soak-tester"
+version = "0.1.0"
+description = "High-concurrency soak/load tester for Couchbase (KV + N1QL) with Prometheus/Grafana and a CLI report"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Robert Hadaway" }]
+dependencies = [
+    "couchbase>=4.2.0,<5.0.0",
+    "prometheus-client>=0.20.0",
+    "rich>=13.7.0",
+    "PyYAML>=6.0.1",
+]
+
+[project.scripts]
+cb-soak = "soaktester.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["soaktester*"]
