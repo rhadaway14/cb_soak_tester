@@ -10,7 +10,7 @@
 #   sudo systemctl start cb-soak
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 WORKDIR="$PWD"
 RUN_USER="${SUDO_USER:-$USER}"
 UNIT_SRC="deploy/systemd/cb-soak.service"

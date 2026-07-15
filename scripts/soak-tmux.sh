@@ -13,7 +13,7 @@
 # `start` so the detached session inherits them.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 SESSION="${SOAK_TMUX_SESSION:-cb-soak}"
 LOG="${SOAK_LOG:-$PWD/soak-tmux.log}"
 

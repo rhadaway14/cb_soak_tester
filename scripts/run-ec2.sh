@@ -12,7 +12,7 @@
 # credentials never need to touch config.yaml on the box.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ACTION="${1:-run}"
 
 # --- Python venv -------------------------------------------------------------
