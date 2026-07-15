@@ -15,8 +15,13 @@ from acouchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.exceptions import (
     BucketAlreadyExistsException,
+    BucketDoesNotExistException,
     BucketNotFoundException,
 )
+
+# The management API raises BucketDoesNotExistException for a missing bucket,
+# while the KV path raises BucketNotFoundException — catch both to be safe.
+_BUCKET_MISSING = (BucketDoesNotExistException, BucketNotFoundException)
 from couchbase.management.buckets import BucketType, CreateBucketSettings
 from couchbase.options import (
     ClusterOptions,
@@ -76,7 +81,7 @@ class CouchbaseClient:
             await mgr.get_bucket(self._cfg.bucket)
             print(f"bucket '{self._cfg.bucket}' already exists")
             return False
-        except BucketNotFoundException:
+        except _BUCKET_MISSING:
             pass
 
         try:
@@ -97,7 +102,7 @@ class CouchbaseClient:
             try:
                 await mgr.get_bucket(self._cfg.bucket)
                 return True
-            except BucketNotFoundException:
+            except _BUCKET_MISSING:
                 await asyncio.sleep(1)
         return True
 
