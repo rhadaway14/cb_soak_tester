@@ -42,8 +42,10 @@ class WorkloadConfig:
     mix: Dict[str, int] = field(
         default_factory=lambda: {"kv_get": 45, "kv_upsert": 25, "query": 30}
     )
+    # {keyspace} is already backtick-quoted (see ClusterConfig.keyspace); do
+    # not wrap it in additional backticks.
     query: str = (
-        "SELECT META().id FROM `{keyspace}` "
+        "SELECT META().id FROM {keyspace} "
         "WHERE type = $type AND region = $region LIMIT 20"
     )
     regions: List[str] = field(

@@ -11,6 +11,7 @@ from rich.live import Live
 from rich.table import Table
 
 from . import __version__
+from ._platform import use_selector_loop
 from .client import CouchbaseClient
 from .config import Config, load_config
 from .metrics import Stats, start_metrics_server
@@ -87,6 +88,10 @@ def _add_common(p: argparse.ArgumentParser) -> None:
 
 
 def main() -> None:
+    # acouchbase needs a SelectorEventLoop (see _platform); set it before any
+    # asyncio.run below.
+    use_selector_loop()
+
     parser = argparse.ArgumentParser(
         prog="cb-soak",
         description="High-concurrency Couchbase KV + N1QL soak tester.",

@@ -8,6 +8,7 @@ import asyncio
 
 from couchbase.exceptions import QueryIndexAlreadyExistsException
 
+from ._platform import use_selector_loop
 from .client import CouchbaseClient
 from .config import Config
 from rich.console import Console
@@ -58,4 +59,5 @@ async def _seed_async(cfg: Config, batch_size: int) -> None:
 
 
 def seed(cfg: Config, batch_size: int = 1000) -> None:
+    use_selector_loop()
     asyncio.run(_seed_async(cfg, batch_size))

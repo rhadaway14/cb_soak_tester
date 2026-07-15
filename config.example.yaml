@@ -40,10 +40,12 @@ workload:
     kv_upsert: 25
     query: 30
   # N1QL query template. $type / $region are bound as named parameters.
-  # Requires an index on (type, region) — `cb-soak seed` creates one.
+  # {keyspace} expands to the already backtick-quoted bucket.scope.collection —
+  # do not add backticks around it. Requires an index on (type, region), which
+  # `cb-soak seed` creates.
   query: >-
     SELECT META().id
-    FROM `{keyspace}`
+    FROM {keyspace}
     WHERE type = $type AND region = $region
     LIMIT 20
   # Regions randomly assigned to seeded docs and used as query parameters.
