@@ -27,6 +27,8 @@ cluster performance under sustained, app-like load.
 
 ## Quick start (local)
 
+Requires **Python ≥ 3.10** (the couchbase SDK ships no 3.9 wheels).
+
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -55,8 +57,19 @@ cb-soak run  -c config.yaml --duration 3600 --concurrency 128
 1. Launch an EC2 instance in the same VPC/subnet as the Couchbase cluster
    (a `c7i.2xlarge` or similar gives plenty of headroom to be the *load
    generator*, not the bottleneck). Open the cluster's security group to it.
-2. Clone this repo onto the box and provide connection details as env vars.
-3. Seed once, then run:
+2. Ensure **Python ≥ 3.10** is present — the couchbase SDK only ships wheels for
+   3.10+, and on 3.9 pip tries (and fails) to compile it from source. Amazon
+   Linux 2023 ships Python 3.9 by default, so install a newer one:
+
+   ```bash
+   sudo dnf install -y python3.11          # Amazon Linux 2023
+   # Ubuntu/Debian: sudo apt-get install -y python3.11 python3.11-venv
+   ```
+
+   `run-ec2.sh` auto-detects a ≥3.10 interpreter (and recreates the venv if it
+   was built with an older one), so once 3.11 is installed you're set.
+3. Clone this repo onto the box and provide connection details as env vars.
+4. Seed once, then run:
 
 ```bash
 export COUCHBASE_CONNSTR="couchbase://<cluster-ip>"   # couchbases:// for TLS/Capella

@@ -7,7 +7,7 @@ name = "cb-soak-tester"
 version = "0.1.0"
 description = "High-concurrency soak/load tester for Couchbase (KV + N1QL) with Prometheus/Grafana and a CLI report"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Robert Hadaway" }]
 dependencies = [
