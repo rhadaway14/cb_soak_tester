@@ -5,6 +5,7 @@ N1QL query) so the runner can stay focused on scheduling and metrics.
 """
 from __future__ import annotations
 
+import asyncio
 import random
 import string
 from datetime import timedelta
@@ -12,6 +13,11 @@ from typing import Optional
 
 from acouchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
+from couchbase.exceptions import (
+    BucketAlreadyExistsException,
+    BucketNotFoundException,
+)
+from couchbase.management.buckets import BucketType, CreateBucketSettings
 from couchbase.options import (
     ClusterOptions,
     ClusterTimeoutOptions,
@@ -31,7 +37,14 @@ class CouchbaseClient:
         self._cluster: Optional[Cluster] = None
         self._collection = None
 
-    async def connect(self) -> None:
+    async def connect(self, ensure_bucket_ram_mb: Optional[int] = None) -> None:
+        """Connect the cluster and open the target bucket.
+
+        If ``ensure_bucket_ram_mb`` is given, the bucket is created when missing
+        (with that RAM quota) and we wait for it to become ready before opening
+        it. When it is ``None`` (the default, used by the run path), a missing
+        bucket fails fast with ``BucketNotFoundException``.
+        """
         timeout = ClusterTimeoutOptions(
             kv_timeout=timedelta(seconds=self._cfg.kv_timeout_s),
             query_timeout=timedelta(seconds=self._cfg.query_timeout_s),
@@ -42,11 +55,68 @@ class CouchbaseClient:
             opts["cert_path"] = self._cfg.tls_cert_path
 
         self._cluster = await Cluster.connect(self._cfg.connstr, opts)
-        bucket = self._cluster.bucket(self._cfg.bucket)
-        await bucket.on_connect()
-        self._collection = bucket.scope(self._cfg.scope).collection(
-            self._cfg.collection
-        )
+
+        if ensure_bucket_ram_mb is not None:
+            await self._ensure_bucket(ensure_bucket_ram_mb)
+            await self._open_bucket_with_retry()
+        else:
+            bucket = self._cluster.bucket(self._cfg.bucket)
+            await bucket.on_connect()
+            self._collection = bucket.scope(self._cfg.scope).collection(
+                self._cfg.collection
+            )
+
+    async def _ensure_bucket(self, ram_quota_mb: int) -> bool:
+        """Create the configured bucket if it does not already exist.
+
+        Returns True if a bucket was created, False if it already existed.
+        """
+        mgr = self._cluster.buckets()
+        try:
+            await mgr.get_bucket(self._cfg.bucket)
+            print(f"bucket '{self._cfg.bucket}' already exists")
+            return False
+        except BucketNotFoundException:
+            pass
+
+        try:
+            await mgr.create_bucket(
+                CreateBucketSettings(
+                    name=self._cfg.bucket,
+                    bucket_type=BucketType.COUCHBASE,
+                    ram_quota_mb=ram_quota_mb,
+                    flush_enabled=True,
+                )
+            )
+            print(f"created bucket '{self._cfg.bucket}' ({ram_quota_mb} MB)")
+        except BucketAlreadyExistsException:
+            return False
+
+        # Wait for the new bucket to be visible to the management API.
+        for _ in range(30):
+            try:
+                await mgr.get_bucket(self._cfg.bucket)
+                return True
+            except BucketNotFoundException:
+                await asyncio.sleep(1)
+        return True
+
+    async def _open_bucket_with_retry(self, attempts: int = 30, delay: float = 1.0) -> None:
+        """Open the bucket, retrying while a freshly created bucket warms up."""
+        last_exc: Optional[Exception] = None
+        for _ in range(attempts):
+            bucket = self._cluster.bucket(self._cfg.bucket)
+            try:
+                await bucket.on_connect()
+                self._collection = bucket.scope(self._cfg.scope).collection(
+                    self._cfg.collection
+                )
+                return
+            except Exception as exc:  # noqa: BLE001 - retried below
+                last_exc = exc
+                await asyncio.sleep(delay)
+        if last_exc is not None:
+            raise last_exc
 
     async def close(self) -> None:
         if self._cluster is not None:

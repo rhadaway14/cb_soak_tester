@@ -39,7 +39,7 @@ export COUCHBASE_CONNSTR="couchbase://localhost"
 export COUCHBASE_USERNAME="Administrator"
 export COUCHBASE_PASSWORD="password"
 
-python -m soaktester seed -c config.yaml            # create key space + indexes (once)
+python -m soaktester seed -c config.yaml            # create bucket + indexes + docs (once)
 python -m soaktester run  -c config.yaml            # run the soak
 ```
 
@@ -76,7 +76,7 @@ export COUCHBASE_CONNSTR="couchbase://<cluster-ip>"   # couchbases:// for TLS/Ca
 export COUCHBASE_USERNAME="Administrator"
 export COUCHBASE_PASSWORD="<secret>"
 
-./scripts/run-ec2.sh seed      # populate the key space + indexes
+./scripts/run-ec2.sh seed      # create the bucket (if missing) + indexes + docs
 ./scripts/run-ec2.sh run       # 1-hour soak (duration/concurrency from config.yaml)
 ```
 
@@ -84,6 +84,12 @@ export COUCHBASE_PASSWORD="<secret>"
 `config.example.yaml` to `config.yaml` if needed, and starts the run. The
 defaults in `config.example.yaml` are a **1-hour (3600s) run at concurrency
 128** — tune `workload.*` to taste.
+
+`seed` **creates the target bucket if it doesn't exist** (RAM quota
+`cluster.bucket_ram_quota_mb`, default 256 MB), then creates the primary +
+`(type, region)` indexes and loads the documents. Pass `--no-create-bucket` to
+require a pre-existing bucket instead. Creating a bucket and indexes needs an
+admin account and the **Data, Query, and Index** services on the cluster.
 
 ### Keeping the run alive across SSH drops
 
@@ -179,6 +185,7 @@ Highlights:
 | `workload.doc_bytes` | Approx payload size per doc | `512` |
 | `workload.target_ops_per_sec` | Global rate cap (`null` = open loop) | `null` |
 | `workload.mix` | Relative op weights (`kv_get`/`kv_upsert`/`query`) | `45/25/30` |
+| `cluster.bucket_ram_quota_mb` | RAM quota when `seed` creates the bucket | `256` |
 | `metrics.port` | Prometheus `/metrics` port | `9099` |
 
 **Secrets** (`COUCHBASE_CONNSTR`, `COUCHBASE_USERNAME`, `COUCHBASE_PASSWORD`, and

@@ -20,6 +20,8 @@ cluster:
   # tls_cert_path is given.
   tls: false
   tls_cert_path: null
+  # RAM quota (MB) used when `seed` auto-creates the bucket if it is missing.
+  bucket_ram_quota_mb: 256
 
 workload:
   # Total wall-clock duration of the soak run.

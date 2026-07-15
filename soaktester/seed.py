@@ -17,6 +17,27 @@ from rich.progress import Progress
 _console = Console()
 
 
+async def _run_index_stmt(client: CouchbaseClient, stmt: str) -> None:
+    # A freshly created bucket can take a moment to register with the query
+    # service, so retry transient failures before giving up.
+    last_exc: Exception | None = None
+    for _ in range(30):
+        try:
+            result = client._cluster.query(stmt)  # noqa: SLF001 - internal use
+            async for _ in result.rows():
+                pass
+            _console.print(f"[green]index ok[/green]  {stmt}")
+            return
+        except QueryIndexAlreadyExistsException:
+            _console.print(f"[yellow]exists[/yellow]  {stmt}")
+            return
+        except Exception as exc:  # noqa: BLE001 - retried while bucket warms up
+            last_exc = exc
+            await asyncio.sleep(1)
+    if last_exc is not None:
+        raise last_exc
+
+
 async def _ensure_index(client: CouchbaseClient, cfg: Config) -> None:
     keyspace = cfg.cluster.keyspace
     stmts = [
@@ -25,18 +46,13 @@ async def _ensure_index(client: CouchbaseClient, cfg: Config) -> None:
         f"ON {keyspace}(type, region)",
     ]
     for stmt in stmts:
-        try:
-            result = client._cluster.query(stmt)  # noqa: SLF001 - internal use
-            async for _ in result.rows():
-                pass
-            _console.print(f"[green]index ok[/green]  {stmt}")
-        except QueryIndexAlreadyExistsException:
-            _console.print(f"[yellow]exists[/yellow]  {stmt}")
+        await _run_index_stmt(client, stmt)
 
 
-async def _seed_async(cfg: Config, batch_size: int) -> None:
+async def _seed_async(cfg: Config, batch_size: int, create_bucket: bool) -> None:
     client = CouchbaseClient(cfg.cluster, cfg.workload)
-    await client.connect()
+    ram = cfg.cluster.bucket_ram_quota_mb if create_bucket else None
+    await client.connect(ensure_bucket_ram_mb=ram)
     try:
         await _ensure_index(client, cfg)
         total = cfg.workload.key_space
@@ -58,6 +74,6 @@ async def _seed_async(cfg: Config, batch_size: int) -> None:
     _console.print(f"[bold green]Seeded {cfg.workload.key_space} documents.[/bold green]")
 
 
-def seed(cfg: Config, batch_size: int = 1000) -> None:
+def seed(cfg: Config, batch_size: int = 1000, create_bucket: bool = True) -> None:
     use_selector_loop()
-    asyncio.run(_seed_async(cfg, batch_size))
+    asyncio.run(_seed_async(cfg, batch_size, create_bucket))

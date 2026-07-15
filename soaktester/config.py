@@ -24,6 +24,8 @@ class ClusterConfig:
     query_timeout_s: float = 30.0
     tls: bool = False
     tls_cert_path: Optional[str] = None
+    # RAM quota (MB) used when `seed` auto-creates a missing bucket.
+    bucket_ram_quota_mb: int = 256
 
     @property
     def keyspace(self) -> str:

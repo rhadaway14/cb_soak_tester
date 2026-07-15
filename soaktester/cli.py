@@ -99,9 +99,16 @@ def main() -> None:
     parser.add_argument("--version", action="version", version=f"cb-soak {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_seed = sub.add_parser("seed", help="Populate the key space and create indexes")
+    p_seed = sub.add_parser(
+        "seed", help="Create the bucket (if missing), indexes, and seed documents"
+    )
     _add_common(p_seed)
     p_seed.add_argument("--batch-size", type=int, default=1000)
+    p_seed.add_argument(
+        "--no-create-bucket",
+        action="store_true",
+        help="Do not create the bucket if it is missing (fail instead)",
+    )
 
     p_run = sub.add_parser("run", help="Run the soak test")
     _add_common(p_run)
@@ -118,7 +125,11 @@ def main() -> None:
     cfg = load_config(args.config)
 
     if args.command == "seed":
-        seed(cfg, batch_size=args.batch_size)
+        seed(
+            cfg,
+            batch_size=args.batch_size,
+            create_bucket=not args.no_create_bucket,
+        )
         return
 
     # run: apply CLI overrides
