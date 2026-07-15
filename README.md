@@ -109,21 +109,43 @@ full report and writes `soak-report.json`. Credentials live in env vars
 ## Grafana dashboard
 
 The tester serves Prometheus metrics on `:9099` by default. Bring up Prometheus
-and Grafana with the bundled stack (run it on the same EC2 host as the tester):
+and Grafana one of two ways.
+
+### Option A — native install, no Docker (recommended for a bare EC2 box)
+
+Installs Prometheus + Grafana from their official release tarballs and runs them
+as systemd services. No Docker, no package repos; works on Amazon Linux or
+Ubuntu, x86_64 or arm64 (Graviton).
+
+```bash
+sudo ./scripts/install-observability.sh          # install + start both services
+# override the Grafana password: sudo GF_ADMIN_PASSWORD=secret ./scripts/install-observability.sh
+sudo ./scripts/install-observability.sh uninstall # stop + remove
+```
+
+It scrapes the tester on `localhost:9099`, provisions the datasource + the
+**Couchbase Soak Test** dashboard, and prints the URLs. Manage it with
+`systemctl status prometheus grafana` and `journalctl -u grafana -f`.
+
+### Option B — Docker Compose
+
+If the host already has Docker, the bundled stack does the same thing:
 
 ```bash
 cd deploy
 docker compose up -d
 ```
 
+Here Prometheus scrapes `host.docker.internal:9099`; to scrape a tester on
+another host, edit the target in
+[`deploy/prometheus/prometheus.yml`](deploy/prometheus/prometheus.yml).
+
+### Either way
+
 - **Grafana** → http://<ec2-host>:3000 (default `admin` / `admin`; override with
   `GF_ADMIN_USER` / `GF_ADMIN_PASSWORD`). The **Couchbase Soak Test** dashboard
   is auto-provisioned.
 - **Prometheus** → http://<ec2-host>:9090.
-
-Prometheus scrapes `host.docker.internal:9099` by default (the tester running on
-the host). To scrape a tester on another host, edit the target in
-[`deploy/prometheus/prometheus.yml`](deploy/prometheus/prometheus.yml).
 
 > Expose ports 3000/9090 only to your own IP in the instance security group.
 
@@ -183,9 +205,10 @@ deploy/              # observability stack + service unit
   grafana/           #   datasource + dashboard provisioning
   systemd/           #   cb-soak.service unit + env-file example
 scripts/
-  run-ec2.sh         #   bootstrap + run helper for EC2
-  soak-tmux.sh       #   run detached in tmux (survives SSH drops)
-  install-systemd.sh #   install the systemd service
+  run-ec2.sh              # bootstrap + run helper for EC2
+  soak-tmux.sh            # run detached in tmux (survives SSH drops)
+  install-systemd.sh      # install the tester as a systemd service
+  install-observability.sh# install Prometheus + Grafana natively (no Docker)
 config.example.yaml  # fully-commented config reference
 ```
 
