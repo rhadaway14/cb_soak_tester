@@ -1,0 +1,26 @@
+[Unit]
+Description=Couchbase soak test (cb_soak_tester)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# __USER__ and __WORKDIR__ are filled in by scripts/install-systemd.sh.
+# To install by hand instead, replace them with the run user and the absolute
+# path to this repo checkout.
+User=__USER__
+Group=__USER__
+WorkingDirectory=__WORKDIR__
+# Credentials + connection details (see cb-soak.env.example). Keep it 0600.
+EnvironmentFile=/etc/cb-soak.env
+ExecStart=__WORKDIR__/.venv/bin/python -m soaktester run -c config.yaml
+# SIGINT makes the tester stop gracefully and print/write its report, so
+# `systemctl stop cb-soak` ends the run cleanly with a summary in the journal.
+KillSignal=SIGINT
+TimeoutStopSec=60
+Restart=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -72,9 +72,37 @@ export COUCHBASE_PASSWORD="<secret>"
 defaults in `config.example.yaml` are a **1-hour (3600s) run at concurrency
 128** — tune `workload.*` to taste.
 
-> Run the tester inside `tmux`/`screen` (or as a `nohup`/systemd service) so an
-> SSH disconnect doesn't end the soak. Ctrl-C stops early and still prints the
-> full report.
+### Keeping the run alive across SSH drops
+
+An hour-long soak shouldn't die when your SSH session does. Two wrappers are
+included — pick one.
+
+**tmux (simplest, no root):**
+
+```bash
+export COUCHBASE_CONNSTR=... COUCHBASE_USERNAME=... COUCHBASE_PASSWORD=...
+./scripts/soak-tmux.sh start seed    # seed once (detached)
+./scripts/soak-tmux.sh start         # start the soak, detached
+./scripts/soak-tmux.sh attach        # watch the live display
+./scripts/soak-tmux.sh logs          # or just tail the captured output
+./scripts/soak-tmux.sh stop          # graceful stop — prints the report
+```
+
+**systemd (survives logout and reboots):**
+
+```bash
+./scripts/run-ec2.sh run             # once, Ctrl-C after it connects, to build .venv
+sudo ./scripts/install-systemd.sh    # renders + installs the unit, seeds /etc/cb-soak.env
+sudo nano /etc/cb-soak.env           # set Couchbase connstr / username / password
+./scripts/run-ec2.sh seed            # seed the key space once
+sudo systemctl start cb-soak         # start the hour-long soak
+journalctl -u cb-soak -f             # watch progress + the final report
+sudo systemctl stop cb-soak          # graceful stop (SIGINT) — prints the report
+```
+
+Both paths stop the tester with **SIGINT**, so an early stop still prints the
+full report and writes `soak-report.json`. Credentials live in env vars
+(`/etc/cb-soak.env` for systemd, `chmod 600`), never in `config.yaml`.
 
 ---
 
@@ -149,11 +177,15 @@ soaktester/          # the tool
   metrics.py         #   Prometheus metrics + reservoir latency stats
   report.py          #   Rich CLI table + JSON summary
   seed.py            #   key-space + index seeding
-deploy/              # observability stack
+deploy/              # observability stack + service unit
   docker-compose.yml #   Prometheus + Grafana
   prometheus/        #   scrape config
   grafana/           #   datasource + dashboard provisioning
-scripts/run-ec2.sh   # bootstrap + run helper for EC2
+  systemd/           #   cb-soak.service unit + env-file example
+scripts/
+  run-ec2.sh         #   bootstrap + run helper for EC2
+  soak-tmux.sh       #   run detached in tmux (survives SSH drops)
+  install-systemd.sh #   install the systemd service
 config.example.yaml  # fully-commented config reference
 ```
 
