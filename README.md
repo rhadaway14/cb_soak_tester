@@ -27,9 +27,12 @@ cluster performance under sustained, app-like load.
 
 ## Quick start (local)
 
-Requires **Python ≥ 3.10** (the couchbase SDK ships no 3.9 wheels).
+Requires **Python ≥ 3.11** (the couchbase SDK ships no 3.9 wheels).
 
 ```bash
+sudo dnf install -y python3.11
+python3 --version
+  
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
